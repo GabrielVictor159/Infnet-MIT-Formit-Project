@@ -1,0 +1,156 @@
+﻿@page "/profile"
+@using Formit.Shared.DTOs
+@using Formit.App.Services.Interfaces
+@using System.ComponentModel.DataAnnotations
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@inject IAuthenticationService AuthService
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+    <MudText Typo="Typo.h3" GutterBottom="true">My Profile</MudText>
+
+    @if (_isLoading)
+    {
+        <MudPaper Class="pa-8 d-flex justify-center align-center">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </MudPaper>
+    }
+    else if (_user != null)
+    {
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudCard Elevation="3">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudAvatar Color="Color.Secondary" Size="Size.Large">
+                                @_user.FullName?.FirstOrDefault().ToString().ToUpper()
+                            </MudAvatar>
+                        </CardHeaderAvatar>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">@_user.UserName</MudText>
+                            <MudText Typo="Typo.body2">@_user.Email</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Class="mb-2"><b>Permissions:</b></MudText>
+                        @if (_user.Roles != null && _user.Roles.Any())
+                        {
+                            foreach (var role in _user.Roles)
+                            {
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Text">@role</MudChip>
+                            }
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small">User</MudChip>
+                        }
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.LockReset"
+                                   Href="/change-password"
+                                   FullWidth="true">
+                            Change Password
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="8">
+                <EditForm Model="@_model" OnValidSubmit="UpdateProfile">
+                    <DataAnnotationsValidator />
+                    <MudCard Elevation="3">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Edit Information</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="12">
+                                    <MudTextField Label="Full Name"
+                                                  @bind-Value="_model.FullName"
+                                                  For="@(() => _model.FullName)"
+                                                  Variant="Variant.Outlined"
+                                                  Adornment="Adornment.Start"
+                                                  AdornmentIcon="@Icons.Material.Filled.Person" />
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudTextField Label="E-mail"
+                                                  @bind-Value="_model.Email"
+                                                  For="@(() => _model.Email)"
+                                                  Variant="Variant.Outlined"
+                                                  Adornment="Adornment.Start"
+                                                  AdornmentIcon="@Icons.Material.Filled.Email" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                        <MudCardActions Class="d-flex justify-end pa-4">
+                            <MudButton ButtonType="ButtonType.Submit"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Disabled="@_isSaving">
+                                @if (_isSaving)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                    <MudText Class="ms-2">Saving...</MudText>
+                                }
+                                else
+                                {
+                                    <MudText>Save Changes</MudText>
+                                }
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </EditForm>
+            </MudItem>
+        </MudGrid>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Error">Could not load user information.</MudAlert>
+    }
+</MudContainer>
+
+@code {
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+    private UserResponseDto? _user;
+    private UpdateUserDto _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserData();
+    }
+
+    private async Task LoadUserData()
+    {
+        _isLoading = true;
+        _user = await AuthService.GetCurrentUserAsync();
+
+        if (_user != null)
+        {
+            _model = new UpdateUserDto
+                {
+                    FullName = _user.FullName,
+                    Email = _user.Email
+                };
+        }
+        _isLoading = false;
+    }
+
+    private async Task UpdateProfile()
+    {
+        _isSaving = true;
+        var result = await AuthService.UpdateProfileAsync(_model);
+        _isSaving = false;
+
+        if (result.Success)
+        {
+            Snackbar.Add("Profile updated successfully!", Severity.Success);
+            await LoadUserData();
+        }
+    }
+}

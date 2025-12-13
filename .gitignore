@@ -1,0 +1,95 @@
+###########################
+# PASTA DE BUILD PADRÃO .NET
+###########################
+
+# Pastas de saída da compilação (binários)
+[Bb]in/
+[Oo]bj/
+
+# Pacotes de dependência restaurados (NuGet)
+[Pp]ackages/
+*.nupkg
+*.snupkg
+# Exclui a pasta global de pacotes Nuget se estiver na raiz
+# Mas geralmente está fora do repositório (~/.nuget/packages/)
+.nuget/
+
+# Pastas de teste de unidade (TestResults)
+TestResults/
+
+# Símbolos de depuração e arquivos de metadados
+*.pdb
+*.suo
+*.user
+*.userosf
+*.sln.docstates
+
+###########################
+# VISUAL STUDIO (VS)
+###########################
+
+# Arquivos de configurações de usuário do Visual Studio
+*.opensdf
+*.docstates
+*.vshost.*
+*.vspscc
+*.vssscc
+*.bak
+*.ide
+.vs/ # Pasta oculta com cache e configurações específicas do VS 2017+
+
+# Arquivos de configuração de depuração do Visual Studio
+[Dd]ebug/
+[Rr]elease/
+
+# Arquivos de log e relatórios de build
+*.log
+*.rpt
+*.wrk
+
+# Arquivos do ReSharper, Rider, etc.
+*_ReSharper*
+*.DotSettings.user
+.idea/
+
+###########################
+# ASP.NET / ASP.NET Core
+###########################
+
+# Arquivos gerados no desenvolvimento web
+appsettings.Development.json
+appsettings.Staging.json
+# Arquivos de inicialização de perfil local
+launchSettings.json 
+
+# Pasta de dependências de cliente (geralmente usada pelo npm/yarn)
+node_modules/
+
+# Blazor WebAssembly / .NET Web
+.cache/
+wwwroot/dist/
+
+# Certificados de desenvolvimento local
+*.pfx
+
+###########################
+# DOCKER
+###########################
+
+# Artefatos temporários e cache do Docker Buildkit
+.dockerignore
+!Dockerfile
+!docker-compose*.yml
+
+# Arquivos de cache do Docker/VS
+.container*
+
+###########################
+# VARIADOS (Windows/OS)
+###########################
+
+# Arquivos temporários do Windows
+Thumb.db
+Desktop.ini
+# Arquivos de metadados do macOS
+.DS_Store

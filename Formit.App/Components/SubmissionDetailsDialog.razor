@@ -1,0 +1,70 @@
+﻿@using Formit.Shared.DTOs
+@using Formit.App.Services.Interfaces
+@inject ISubmissionService SubmissionService
+
+<MudDialog>
+    <DialogContent>
+        @if (_details == null)
+        {
+            <div class="d-flex justify-center pa-4">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+            </div>
+        }
+        else
+        {
+            <MudGrid Class="mb-4">
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption">Usuário</MudText>
+                    <MudText Typo="Typo.body1"><b>@_details.UserName</b></MudText>
+                </MudItem>
+                <MudItem xs="6" Class="d-flex justify-end">
+                    <div class="text-end">
+                        <MudText Typo="Typo.caption">Pontuação Final</MudText>
+                        <MudText Typo="Typo.h5" Color="Color.Primary"><b>@_details.Score pts</b></MudText>
+                    </div>
+                </MudItem>
+            </MudGrid>
+
+            <MudDivider Class="my-2" />
+
+            <MudList T="string" Dense="true" DisablePadding="true">
+                @foreach (var answer in _details.Answers)
+                {
+                    <MudListItem T="string">
+                        <div class="d-flex flex-column gap-1 py-2">
+                            <MudText Typo="Typo.body2">@answer.QuestionText</MudText>
+
+                            <div class="d-flex align-center mt-1">
+                                <MudIcon Icon="@(answer.IsCorrect ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                                         Color="@(answer.IsCorrect ? Color.Success : Color.Error)"
+                                         Size="Size.Small"
+                                         Class="mr-2" />
+                                <MudText Typo="Typo.body2" Color="@(answer.IsCorrect ? Color.Success : Color.Error)">
+                                    @answer.ChosenAnswer
+                                </MudText>
+                            </div>
+                        </div>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            </MudList>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Color="Color.Primary">Fechar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int SubmissionId { get; set; }
+
+    private SubmissionDetailsDto? _details;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _details = await SubmissionService.GetSubmissionDetailsAsync(SubmissionId);
+    }
+
+    void Close() => MudDialog.Close();
+}

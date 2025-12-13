@@ -1,0 +1,129 @@
+﻿@page "/register"
+@using Formit.Shared.DTOs
+@using Formit.App.Services.Interfaces
+@layout AuthLayout
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height: 80vh;">
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12">
+            <EditForm Model="@_registerModel" OnValidSubmit="ExecuteRegister">
+                <DataAnnotationsValidator />
+
+                <MudCard Elevation="4" Class="pa-4">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Primary" Class="mb-2"><b>Create Account</b></MudText>
+                            <MudText Typo="Typo.body2" Align="Align.Center">Join Formit to start creating quizzes</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+
+                    <MudCardContent>
+                        <MudTextField Label="Full Name"
+                                      @bind-Value="_registerModel.FullName"
+                                      For="@(() => _registerModel.FullName)"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Person"
+                                      Class="mb-3" />
+
+                        <MudTextField Label="Email"
+                                      @bind-Value="_registerModel.Email"
+                                      For="@(() => _registerModel.Email)"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Email"
+                                      Class="mb-3" />
+
+                        <MudTextField Label="Password"
+                                      @bind-Value="_registerModel.Password"
+                                      For="@(() => _registerModel.Password)"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      InputType="@_passwordInputType"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@_passwordInputIcon"
+                                      OnAdornmentClick="TogglePasswordVisibility"
+                                      Class="mb-3" />
+
+                        <MudTextField Label="Confirm Password"
+                                      @bind-Value="_registerModel.ConfirmPassword"
+                                      For="@(() => _registerModel.ConfirmPassword)"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      InputType="@_passwordInputType"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@_passwordInputIcon"
+                                      OnAdornmentClick="TogglePasswordVisibility"
+                                      Class="mb-1" />
+                    </MudCardContent>
+
+                    <MudCardActions Class="d-flex flex-column gap-2 px-4 pb-4">
+                        <MudButton ButtonType="ButtonType.Submit"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   Size="Size.Large"
+                                   FullWidth="true"
+                                   Disabled="@_isLoading">
+                            @if (_isLoading)
+                            {
+                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                <MudText Class="ms-2">Registering...</MudText>
+                            }
+                            else
+                            {
+                                <MudText>Register</MudText>
+                            }
+                        </MudButton>
+
+                        <MudText Typo="Typo.body2" Align="Align.Center" Class="mt-2">
+                            Already have an account? <MudLink Href="/login" Color="Color.Secondary" Underline="Underline.Always">Sign In</MudLink>
+                        </MudText>
+                    </MudCardActions>
+                </MudCard>
+            </EditForm>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private RegisterUserDto _registerModel = new();
+    private bool _isLoading = false;
+
+    bool _isShowPassword = false;
+    InputType _passwordInputType = InputType.Password;
+    string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    void TogglePasswordVisibility()
+    {
+        if (_isShowPassword)
+        {
+            _isShowPassword = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInputType = InputType.Password;
+        }
+        else
+        {
+            _isShowPassword = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInputType = InputType.Text;
+        }
+    }
+
+    private async Task ExecuteRegister()
+    {
+        _isLoading = true;
+        var result = await AuthService.RegisterAsync(_registerModel);
+        _isLoading = false;
+
+        if (result.Success)
+        {
+            Snackbar.Add("Registration successful! Please login.", Severity.Success);
+            Navigation.NavigateTo("/login");
+        }
+    }
+}

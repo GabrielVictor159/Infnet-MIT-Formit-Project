@@ -1,0 +1,178 @@
+﻿@page "/quizzes"
+@using Formit.Shared.DTOs
+@using Formit.App.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject IQuizService QuizService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+
+    <div class="d-flex justify-space-between align-center mb-6">
+        <MudText Typo="Typo.h4">Quizzes Disponíveis</MudText>
+
+        <div class="d-flex gap-4 align-center">
+            <MudTextField @bind-Value="_searchString"
+                          Placeholder="Buscar Quiz..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium"
+                          Class="mt-0"
+                          DebounceInterval="500"
+                          OnDebounceIntervalElapsed="OnSearch" />
+
+            <AuthorizeView Roles="Admin">
+                <Authorized>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="CreateQuiz">
+                        Novo Quiz
+                    </MudButton>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center my-8">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </div>
+    }
+    else if (_quizzes != null && _quizzes.Any())
+    {
+        <MudGrid>
+            @foreach (var quiz in _quizzes)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudCard Elevation="3" Class="h-100 d-flex flex-column">
+                        @if (quiz.Image != null && quiz.Image.Length > 0)
+                        {
+                            <MudCardMedia Image="@GetImageSrc(quiz.Image)" Height="200" />
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-center align-center mud-theme-primary lighten-4" style="height: 200px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Quiz" Size="Size.Large" Color="Color.Primary" style="font-size: 4rem;" />
+                            </div>
+                        }
+
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">@quiz.Title</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+
+                        <MudCardContent Class="flex-grow-1">
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                @(quiz.Description?.Length > 100 ? quiz.Description.Substring(0, 100) + "..." : quiz.Description)
+                            </MudText>
+                            <MudChip T="string" Size="Size.Small" Class="mt-2">@quiz.Questions?.Count Questões</MudChip>
+                        </MudCardContent>
+
+                        <MudCardActions Class="justify-space-between pa-4">
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Success"
+                                       StartIcon="@Icons.Material.Filled.PlayArrow"
+                                       OnClick="@(() => PlayQuiz(quiz.Id))">
+                                Responder
+                            </MudButton>
+
+                            <AuthorizeView Roles="Admin">
+                                <Authorized Context="authContext">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                   Color="Color.Info"
+                                                   OnClick="@(() => EditQuiz(quiz.Id))"
+                                                   Title="Editar Quiz" />
+                                </Authorized>
+                            </AuthorizeView>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+
+        <div class="d-flex justify-center mt-6">
+            <MudPagination Count="@_totalPages" SelectedChanged="PageChanged" />
+        </div>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info" Class="mt-4">Nenhum quiz encontrado.</MudAlert>
+    }
+
+</MudContainer>
+
+@code {
+    private bool _isLoading = true;
+    private List<QuizResponseDto> _quizzes = new();
+    private string _searchString = "";
+
+    private int _page = 1;
+    private int _pageSize = 8;
+    private int _totalPages = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+        try
+        {
+            var result = await QuizService.GetAllPagedAsync(_page, _pageSize, _searchString);
+
+            _quizzes = result.Items.ToList();
+
+            _totalPages = (int)Math.Ceiling((double)result.TotalCount / _pageSize);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Erro ao carregar quizzes.", Severity.Error);
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnSearch()
+    {
+        _page = 1;
+        await LoadData();
+    }
+
+    private async Task PageChanged(int i)
+    {
+        _page = i;
+        await LoadData();
+    }
+
+    private void CreateQuiz()
+    {
+        Navigation.NavigateTo("/quiz/create");
+    }
+
+    private void EditQuiz(int id)
+    {
+        Navigation.NavigateTo($"/quiz/edit/{id}");
+    }
+
+    private void PlayQuiz(int id)
+    {
+        Navigation.NavigateTo($"/quiz/play/{id}");
+    }
+
+    private string GetImageSrc(byte[] imageBytes)
+    {
+        if (imageBytes == null || imageBytes.Length == 0) return "";
+        var base64 = Convert.ToBase64String(imageBytes);
+        return $"data:image/png;base64,{base64}";
+    }
+}

@@ -1,0 +1,104 @@
+﻿@using Microsoft.AspNetCore.Components.Forms
+@inject ISnackbar Snackbar
+
+<div class="d-flex flex-column align-center gap-2 my-2" style="position: relative; min-height: 50px;">
+
+    <MudOverlay Visible="_isUploading" Absolute="true" DarkBackground="true" ZIndex="9999">
+        <MudProgressCircular Color="Color.Secondary" Indeterminate="true" Size="Size.Medium" />
+    </MudOverlay>
+
+    @if (Image == null || Image.Length == 0)
+    {
+        <MudFileUpload T="IBrowserFile" FilesChanged="UploadImage" Accept=".png, .jpg, .jpeg" Disabled="_isUploading">
+            <ActivatorContent>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Info"
+                           StartIcon="@Icons.Material.Filled.Image"
+                           Size="Size.Small"
+                           Disabled="_isUploading">
+                    @Label
+                </MudButton>
+            </ActivatorContent>
+        </MudFileUpload>
+    }
+    else
+    {
+        <MudImage Src="@_previewBase64"
+                  Height="200"
+                  ObjectFit="ObjectFit.Contain"
+                  Class="rounded border"
+                  Style="max-width: 100%;"
+                  Elevation="2" />
+
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Error"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Delete"
+                   OnClick="RemoveImage"
+                   Disabled="_isUploading">
+            Remover
+        </MudButton>
+    }
+</div>
+
+@code {
+    [Parameter] public byte[]? Image { get; set; }
+    [Parameter] public EventCallback<byte[]?> ImageChanged { get; set; }
+    [Parameter] public string Label { get; set; } = "Adicionar Imagem";
+
+    private string? _previewBase64;
+    private bool _isUploading = false;
+
+    protected override void OnParametersSet()
+    {
+        if (Image != null && Image.Length > 0)
+        {
+            if (_previewBase64 == null || !_previewBase64.StartsWith("data:image"))
+            {
+                _previewBase64 = $"data:image/jpeg;base64,{Convert.ToBase64String(Image)}";
+            }
+        }
+        else
+        {
+            _previewBase64 = null;
+        }
+    }
+
+    private async Task UploadImage(IBrowserFile file)
+    {
+        if (file == null) return;
+
+        _isUploading = true;
+        StateHasChanged(); 
+        await Task.Delay(10); 
+
+        try
+        {
+            var resized = await file.RequestImageFileAsync("image/jpeg", 400, 400);
+
+            var buffer = new byte[resized.Size];
+            await resized.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).ReadAsync(buffer);
+
+            Image = buffer;
+
+            _previewBase64 = $"data:image/jpeg;base64,{Convert.ToBase64String(Image)}";
+
+            await ImageChanged.InvokeAsync(Image);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploading = false;
+        }
+    }
+
+    private async Task RemoveImage()
+    {
+        Image = null;
+        _previewBase64 = null;
+        await ImageChanged.InvokeAsync(null);
+    }
+}

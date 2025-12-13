@@ -1,0 +1,12 @@
+services:
+  formit.api:
+    image: ${DOCKER_REGISTRY-}formitapi
+    build:
+      context: .
+      dockerfile: Formit.Api/Dockerfile
+  formit.app:
+    image: ${DOCKER_REGISTRY-}formitapp
+    build:
+      context: .
+      dockerfile: Formit.App.WebAssembly/Dockerfile
+

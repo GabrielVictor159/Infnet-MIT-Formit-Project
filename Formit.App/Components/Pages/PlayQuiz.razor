@@ -1,0 +1,187 @@
+﻿@page "/quiz/play/{Id:int}"
+@using Formit.Shared.DTOs
+@using Formit.App.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IQuizService QuizService
+@inject ISubmissionService SubmissionService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8 mb-8">
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center my-8">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </div>
+    }
+    else if (_quiz == null)
+    {
+        <MudAlert Severity="Severity.Error">Quiz não encontrado.</MudAlert>
+        <MudButton Href="/quizzes" Variant="Variant.Text">Voltar</MudButton>
+    }
+    else if (_gameFinished)
+    {
+        <MudCard Elevation="4" Class="pa-8 text-center animate-fade-in">
+            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Style="font-size: 5rem;" />
+            <MudText Typo="Typo.h4" Class="my-4">Parabéns!</MudText>
+            <MudText Typo="Typo.body1">Você completou <b>@_quiz.Title</b>.</MudText>
+
+            @if (_finalScore.HasValue)
+            {
+                <MudText Typo="Typo.h5" Color="Color.Success" Class="mt-4">
+                    Sua pontuação: <b>@_finalScore</b> pts
+                </MudText>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/quizzes" Class="mt-6">
+                Voltar para a Lista
+            </MudButton>
+        </MudCard>
+    }
+    else
+    {
+        <MudCard Elevation="4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <div class="d-flex justify-space-between align-center">
+                        <MudText Typo="Typo.caption">Questão @(_currentQuestionIndex + 1) de @_quiz.Questions.Count</MudText>
+                        <MudChip Size="Size.Small" Color="Color.Primary" T="string">@_quiz.Title</MudChip>
+                    </div>
+                    <MudProgressLinear Color="Color.Info" Value="@GetProgress()" Class="my-2" Striped="true" />
+                </CardHeaderContent>
+            </MudCardHeader>
+
+            @if (_currentQuestion?.Image != null && _currentQuestion.Image.Length > 0)
+            {
+                <MudCardMedia Image="@GetImageSrc(_currentQuestion.Image)" Height="250" />
+            }
+
+            <MudCardContent>
+                <MudText Typo="Typo.h6" Class="mb-6">@_currentQuestion?.Text</MudText>
+
+                <MudRadioGroup @bind-Value="_selectedOptionId">
+                    @foreach (var option in _currentQuestion!.Options)
+                    {
+                        <div class="d-flex align-center pa-3 my-2 border rounded mud-border-lines-default hover-option @(_selectedOptionId == option.Id ? "selected-option" : "")">
+                            <MudRadio Value="@option.Id" Color="Color.Primary" UnCheckedColor="Color.Default">
+                                @option.OptionText
+                            </MudRadio>
+                        </div>
+                    }
+                </MudRadioGroup>
+            </MudCardContent>
+
+            <MudCardActions Class="d-flex justify-end pa-4">
+                <MudButton Variant="Variant.Filled" 
+                Color="@(_isLastQuestion ? Color.Success : Color.Primary)" 
+                EndIcon="@(_isLastQuestion ? Icons.Material.Filled.Check : Icons.Material.Filled.ArrowForward)"
+                OnClick="NextQuestion"
+                Disabled="@(_selectedOptionId == 0 || _isSubmitting)">
+                    @if (_isSubmitting)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2"/>
+                        <span>Enviando...</span>
+                    }
+                    else
+                    {
+                        @(_isLastQuestion ? "Finalizar Quiz" : "Próxima Questão")
+                    }
+                </MudButton>
+            </MudCardActions>
+        </MudCard>
+    }
+</MudContainer>
+
+<style>
+    .hover-option:hover { background-color: var(--mud-palette-action-hover); cursor: pointer; }
+    .selected-option { background-color: var(--mud-palette-primary-hover); border-color: var(--mud-palette-primary) !important; }
+    .animate-fade-in { animation: fadeIn 0.5s ease-in; }
+    @@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isSubmitting = false;
+    private bool _gameFinished = false;
+    private int? _finalScore;
+
+    private QuizResponseDto? _quiz;
+    private int _currentQuestionIndex = 0;
+    private int _selectedOptionId = 0;
+
+    private List<SubmitAnswerDto> _collectedAnswers = new();
+
+    private QuestionResponseDto? _currentQuestion => _quiz?.Questions.ElementAtOrDefault(_currentQuestionIndex);
+    private bool _isLastQuestion => _currentQuestionIndex == (_quiz?.Questions.Count - 1);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        try 
+        {
+            _quiz = await QuizService.GetByIdAsync(Id);
+        }
+        catch 
+        {
+            Snackbar.Add("Erro ao carregar o quiz.", Severity.Error);
+        }
+        _isLoading = false;
+    }
+
+    private async Task NextQuestion()
+    {
+        if (_selectedOptionId == 0) return;
+
+        _collectedAnswers.Add(new SubmitAnswerDto(_currentQuestion!.Id, _selectedOptionId));
+
+        if (_isLastQuestion)
+        {
+            await SubmitQuiz();
+        }
+        else
+        {
+            _currentQuestionIndex++;
+            _selectedOptionId = 0;
+        }
+    }
+
+    private async Task SubmitQuiz()
+    {
+        _isSubmitting = true;
+        try
+        {
+            var dto = new SubmitFormDto() { QuizId = Id, Answers = _collectedAnswers };
+
+            var submissionId = await SubmissionService.SubmitQuizAsync(dto);
+            
+            var details = await SubmissionService.GetSubmissionDetailsAsync(submissionId);
+            _finalScore = details?.Score ?? 0;
+
+            _gameFinished = true;
+            Snackbar.Add("Respostas enviadas com sucesso!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao enviar respostas: {ex.Message}", Severity.Error);
+            _collectedAnswers.RemoveAt(_collectedAnswers.Count - 1); 
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private double GetProgress()
+    {
+        if (_quiz == null || _quiz.Questions.Count == 0) return 0;
+        return ((double)(_currentQuestionIndex + 1) / _quiz.Questions.Count) * 100;
+    }
+
+    private string GetImageSrc(byte[] imageBytes)
+    {
+        return $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
+    }
+}

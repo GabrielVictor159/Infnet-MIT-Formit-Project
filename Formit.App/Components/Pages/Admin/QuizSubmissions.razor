@@ -1,0 +1,120 @@
+﻿@page "/quiz/{QuizId:int}/submissions"
+@using Formit.Shared.DTOs
+@using Formit.App.Services.Interfaces
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject ISubmissionService SubmissionService
+@inject IQuizService QuizService
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+
+    <div class="d-flex align-center mb-6">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Href="/quizzes" Class="mr-4" />
+        <div>
+            <MudText Typo="Typo.h4">Resultados</MudText>
+            <MudText Typo="Typo.subtitle1" Color="Color.Secondary">
+                @(_quizTitle ?? "Carregando...")
+            </MudText>
+        </div>
+    </div>
+
+    <MudTable Items="_submissions" Hover="true" Loading="_isLoading" Elevation="3" Filter="new Func<SubmissionSummaryDto,bool>(FilterFunc)">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Submissões Recebidas</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Buscar por nome..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" />
+        </ToolBarContent>
+
+        <HeaderContent>
+            <MudTh>Usuário</MudTh>
+            <MudTh>Data</MudTh>
+            <MudTh>Pontuação</MudTh>
+            <MudTh Style="text-align:center">Ações</MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd DataLabel="Usuário">
+                <div class="d-flex align-center">
+                    <MudAvatar Color="Color.Primary" Size="Size.Small" Class="mr-3">@context.UserName?.FirstOrDefault()</MudAvatar>
+                    <MudText>@context.UserName</MudText>
+                </div>
+            </MudTd>
+            <MudTd DataLabel="Data">@context.SubmissionDate.ToLocalTime().ToString("g")</MudTd>
+            <MudTd DataLabel="Score">
+                <MudChip T="string" Color="@GetScoreColor(context.Score)" Size="Size.Small" Variant="Variant.Filled">
+                    @context.Score pts
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Ações" Style="text-align:center">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Info"
+                           Size="Size.Small"
+                           OnClick="@(() => ViewDetails(context.Id))">
+                    Ver Detalhes
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+
+        <NoRecordsContent>
+            <MudText>Nenhuma resposta encontrada para este quiz.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+
+</MudContainer>
+
+@code {
+    [Parameter] public int QuizId { get; set; }
+
+    private bool _isLoading = true;
+    private string? _quizTitle;
+    private List<SubmissionSummaryDto> _submissions = new();
+    private string _searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+
+        var quiz = await QuizService.GetByIdAsync(QuizId);
+        _quizTitle = quiz?.Title;
+
+        var result = await SubmissionService.GetSubmissionsByQuizIdAsync(QuizId);
+        _submissions = result.ToList();
+        _isLoading = false;
+    }
+
+    private Color GetScoreColor(int score)
+    {
+        if (score >= 80) return Color.Success;
+        if (score >= 50) return Color.Warning;
+        return Color.Error;
+    }
+
+    private bool FilterFunc(SubmissionSummaryDto element)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        if (element.UserName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        return false;
+    }
+
+    private async Task ViewDetails(int submissionId)
+    {
+        var parameters = new DialogParameters<SubmissionDetailsDialog>
+        {
+            { x => x.SubmissionId, submissionId }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+        await DialogService.ShowAsync<SubmissionDetailsDialog>("Detalhes da Resposta", parameters, options);
+    }
+}

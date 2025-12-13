@@ -1,0 +1,250 @@
+﻿@page "/quiz/edit/{Id:int}"
+@using Formit.Shared.DTOs
+@using Formit.App.Services.Interfaces
+@using System.ComponentModel.DataAnnotations
+@using Formit.App.Components
+
+@inject IQuizService QuizService
+@inject IQuestionService QuestionService
+@inject IOptionService OptionService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8 mb-8">
+    <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Href="/quizzes" Class="mb-4">Voltar para Quizzes</MudButton>
+    <MudText Typo="Typo.h4" GutterBottom="true">Editar Quiz: @_quizModel.Title</MudText>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center my-8">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </div>
+    }
+    else if (_quizModel.Id == 0) // Quiz not found
+    {
+        <MudAlert Severity="Severity.Error">Quiz não encontrado.</MudAlert>
+    }
+    else
+    {
+        <EditForm Model="@_quizModel" OnValidSubmit="SaveQuiz">
+            <DataAnnotationsValidator />
+
+            <MudCard Elevation="3" Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Informações Básicas</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <QuizImageUploader @bind-Image="_quizModel.Image" Label="Carregar Capa do Quiz" />
+                        </MudItem>
+
+                        <MudItem xs="12">
+                            <MudTextField Label="Título" @bind-Value="_quizModel.Title" For="@(() => _quizModel.Title)" Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField Label="Descrição" Lines="3" @bind-Value="_quizModel.Description" Variant="Variant.Outlined" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+
+            <div class="d-flex justify-space-between align-center mt-6 mb-2">
+                <MudText Typo="Typo.h5">Questões (@_quizModel.Questions.Count)</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddQuestion">
+                    Adicionar Questão
+                </MudButton>
+            </div>
+
+            @for (int i = 0; i < _quizModel.Questions.Count; i++)
+            {
+                var index = i;
+                var question = _quizModel.Questions[i];
+
+                <MudCard @key="question" Elevation="2" Class="mb-4 pa-2 border-l-4 mud-border-primary">
+                    <MudCardContent>
+                        <div class="d-flex justify-space-between align-start mb-4">
+                            <MudText Typo="Typo.subtitle1"><b>Questão @(index + 1)</b></MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveQuestion(question))" />
+                        </div>
+
+                        <QuizImageUploader @bind-Image="question.Image" Label="Adicionar Imagem à Questão" />
+
+                        <MudTextField Label="Enunciado" @bind-Value="question.Text" Variant="Variant.Text" Class="mb-4 mt-2" Required="true" Lines="2" />
+
+                        <MudText Typo="Typo.body2" Class="mt-2">Opções:</MudText>
+                        @foreach (var option in question.Options)
+                        {
+                            <div class="d-flex align-center gap-2 mb-2">
+                                <MudCheckBox @key="option.Id" @bind-Value="option.IsCorrect" Color="Color.Success" Dense="true" Tooltip="É a correta?" />
+                                <MudTextField @key="option.Id" @bind-Value="option.OptionText" Placeholder="Texto da opção" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => RemoveOption(question, option))" />
+                            </div>
+                        }
+                        <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => AddOption(question))">
+                            Nova Opção
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <div class="d-flex justify-space-between mt-6 mb-8">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.DeleteForever"
+                           OnClick="ConfirmDeleteQuiz">
+                    Deletar Quiz
+                </MudButton>
+
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Success" Size="Size.Large" Disabled="_isSaving">
+                    @(_isSaving ? "Salvando..." : "Salvar Alterações")
+                </MudButton>
+            </div>
+        </EditForm>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+
+    // Usamos UpdateQuizDto, já que ele agora possui as coleções aninhadas
+    private UpdateQuizDto _quizModel = new();
+    private List<int> _optionsToDelete = new(); // Lista para rastrear opções deletadas
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        await LoadData();
+        _isLoading = false;
+    }
+
+    private async Task LoadData()
+    {
+        var response = await QuizService.GetByIdAsync(Id);
+
+        if (response != null)
+        {
+            _quizModel.Id = response.Id;
+            _quizModel.Title = response.Title;
+            _quizModel.Description = response.Description;
+            _quizModel.Image = response.Image;
+
+            // Mapeamento de QuizResponseDto para UpdateQuizDto (novo DTO)
+            _quizModel.Questions = response.Questions.Select(q => new UpdateQuestionDto
+                {
+                    Id = q.Id,
+                    Text = q.Text,
+                    Image = q.Image,
+                    // O QuizResponseDto não tem IsCorrect. Assumimos FALSE ou ajustamos a API.
+                    // Continuamos assumindo FALSE aqui temporariamente.
+                    Options = q.Options.Select(o => new UpdateOptionDto
+                    {
+                        Id = o.Id,
+                        OptionText = o.OptionText,
+                        IsCorrect = false
+                    }).ToList()
+                }).ToList();
+        }
+        else
+        {
+            _quizModel.Id = 0;
+        }
+    }
+
+
+    private void AddQuestion()
+    {
+        _quizModel.Questions.Add(new UpdateQuestionDto
+            {
+                Id = 0, // Novo ID (será criado no backend)
+                Text = "Nova Questão",
+                Options = new List<UpdateOptionDto> {
+                new UpdateOptionDto { OptionText = "", IsCorrect = false },
+            }
+            });
+    }
+
+    private void RemoveQuestion(UpdateQuestionDto question)
+    {
+        if (question.Id != 0)
+        {
+            _quizModel.QuestionsToDelete.Add(question.Id);
+        }
+        _quizModel.Questions.Remove(question);
+    }
+
+    private void AddOption(UpdateQuestionDto question)
+    {
+        question.Options.Add(new UpdateOptionDto { Id = 0, OptionText = "", IsCorrect = false });
+    }
+
+    private void RemoveOption(UpdateQuestionDto question, UpdateOptionDto option)
+    {
+        if (option.Id != 0)
+        {
+            // Adiciona à lista de exclusão
+            question.OptionsToDelete.Add(option.Id);
+        }
+        question.Options.Remove(option);
+    }
+
+    private async Task SaveQuiz()
+    {
+        // 1. Validação simples antes de salvar
+        if (!_quizModel.Questions.Any()) { Snackbar.Add("Adicione pelo menos uma questão.", Severity.Warning); return; }
+        foreach (var q in _quizModel.Questions)
+        {
+            if (!q.Options.Any(o => o.IsCorrect)) { Snackbar.Add($"A questão '{q.Text}' não tem resposta correta.", Severity.Warning); return; }
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            // 2. Chamada ÚNICA: Envia o _quizModel (agora UpdateQuizDto)
+            // O backend deve processar a árvore completa
+            await QuizService.UpdateAsync(Id, _quizModel);
+
+            Snackbar.Add("Quiz atualizado com sucesso!", Severity.Success);
+            Navigation.NavigateTo("/quizzes");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao salvar: {ex.Message}", Severity.Error);
+        }
+
+        _isSaving = false;
+    }
+
+    private async Task ConfirmDeleteQuiz()
+    {
+        bool? result = await DialogService.ShowMessageBox(
+           "Confirmar Exclusão",
+           $"Você tem certeza que deseja deletar o quiz '{_quizModel.Title}' e todas as suas questões? Esta ação é irreversível.",
+           yesText: "Sim, Deletar", cancelText: "Cancelar");
+
+        if (result == true)
+        {
+            await DeleteQuiz();
+        }
+    }
+
+    private async Task DeleteQuiz()
+    {
+        try
+        {
+            await QuizService.DeleteAsync(Id);
+            Snackbar.Add($"Quiz '{_quizModel.Title}' deletado com sucesso.", Severity.Success);
+            Navigation.NavigateTo("/quizzes");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao deletar quiz: {ex.Message}", Severity.Error);
+        }
+    }
+}
