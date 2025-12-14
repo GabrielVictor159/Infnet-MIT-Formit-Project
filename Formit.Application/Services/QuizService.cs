@@ -2,6 +2,7 @@
 using Formit.Domain.Entities;
 using Formit.Infraestructure.Interfaces;
 using Formit.Shared.DTOs;
+using Microsoft.EntityFrameworkCore;
 
 namespace Formit.Application.Services;
 public class QuizService : IQuizService
@@ -71,7 +72,7 @@ public class QuizService : IQuizService
                 q.Id,
                 q.Text,
                 q.Image,
-                options.Select(o => new OptionResponseDto(o.Id, o.OptionText)).ToList()
+                options.Select(o => new OptionResponseDto(o.Id, o.OptionText, o.IsCorrect)).ToList()
             ));
         }
 
@@ -125,7 +126,11 @@ public class QuizService : IQuizService
 
     public async Task<QuizResponseDto> UpdateAsync(int id, UpdateQuizDto dto)
     {
-        var quiz = (await _unitOfWork.Quizzes.FindWithIncludesAsync(e=>e.Id==id,e=>e.Questions, e=>e.Questions.Select(q=>q.Options))).FirstOrDefault();
+        IQueryable<Quiz> query = _unitOfWork.Quizzes.GetQueryable();
+        query = query
+            .Include(q => q.Questions)
+            .ThenInclude(q => q.Options);
+        var quiz = (await _unitOfWork.Quizzes.GetAsync(query, q => q.Id == id)).FirstOrDefault();
         if (quiz == null)
             throw new KeyNotFoundException($"Quiz with id {id} not found.");
 

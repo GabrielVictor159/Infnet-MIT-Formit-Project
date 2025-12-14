@@ -10,6 +10,7 @@ public interface IAuthenticationService
     Task<AuthResponseDto> LoginAsync(LoginDto loginDto);
     Task<AuthResponseDto> RegisterAsync(RegisterUserDto registerDto);
     Task Logout();
+    Task<bool> IsUserAdminAsync();
 
     // --- Fluxo do Usuário Logado (Perfil) ---
     Task ValidateSessionAsync();

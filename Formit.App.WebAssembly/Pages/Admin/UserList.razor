@@ -1,0 +1,87 @@
+﻿@page "/users"
+@using Formit.Shared.DTOs
+@using Formit.App.Services.Interfaces
+
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    <MudText Typo="Typo.h4" GutterBottom="true">User Management</MudText>
+
+    <MudTable ServerData="@ServerReload" Hover="true" Elevation="3" @ref="_table">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Users</MudText>
+            <MudSpacer />
+            <MudTextField T="string" ValueChanged="@(s => OnSearch(s))" Placeholder="Search by name or email..."
+                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"
+                Class="mt-0" />
+        </ToolBarContent>
+
+        <HeaderContent>
+            <MudTh>Full Name</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Roles</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+
+        <RowTemplate Context="user">
+            <MudTd DataLabel="Full Name">@user.FullName</MudTd>
+            <MudTd DataLabel="Email">@user.Email</MudTd>
+            <MudTd DataLabel="Roles">
+                @foreach (var role in user.Roles)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">@role</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Href="@($"/users/{user.Id}")"
+                    Title="Edit User" />
+            </MudTd>
+        </RowTemplate>
+
+        <NoRecordsContent>
+            <MudText>No users found.</MudText>
+        </NoRecordsContent>
+
+        <LoadingContent>
+            <MudText>Loading...</MudText>
+        </LoadingContent>
+
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private MudTable<UserResponseDto> _table = null!;
+    private string _searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        bool isAdmin = await AuthService.IsUserAdminAsync();
+        if (!isAdmin)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+    private async Task<TableData<UserResponseDto>> ServerReload(TableState state, CancellationToken token)
+    {
+        var pageNumber = state.Page + 1;
+        var pageSize = state.PageSize;
+
+        var result = await AuthService.GetAllUsersPagedAsync(pageNumber, pageSize, _searchString);
+
+        return new TableData<UserResponseDto>()
+        {
+            TotalItems = result.TotalCount,
+            Items = result.Items
+        };
+    }
+
+    private void OnSearch(string text)
+    {
+        _searchString = text;
+        _table.ReloadServerData();
+    }
+}

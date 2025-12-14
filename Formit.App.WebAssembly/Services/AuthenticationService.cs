@@ -229,11 +229,30 @@ public class AuthenticationService : BaseService, IAuthenticationService
     }
 
     public async Task Logout()
-    { 
+    {
         await _localStorage.RemoveItemAsync("authToken");
         await _localStorage.RemoveItemAsync("userRoles");
 
         _navigationManager.NavigateTo("/login");
     }
 
+    public async Task<bool> IsUserAdminAsync()
+    {
+        try
+        {
+            var userRoles = await _localStorage.GetItemAsync<List<string>>("userRoles");
+
+            if (userRoles == null || !userRoles.Any())
+            {
+                return false;
+            }
+
+            return userRoles.Any(r => r.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao verificar função de administrador: {ex.Message}");
+            return false;
+        }
+    }
 }

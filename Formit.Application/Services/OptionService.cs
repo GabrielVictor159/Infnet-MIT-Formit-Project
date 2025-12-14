@@ -30,7 +30,7 @@ public class OptionService : IOptionService
         await _unitOfWork.Options.AddAsync(option);
         await _unitOfWork.CompleteAsync();
 
-        return new OptionResponseDto(option.Id, option.OptionText);
+        return new OptionResponseDto(option.Id, option.OptionText, option.IsCorrect);
     }
 
     public async Task<OptionResponseDto> UpdateAsync(int id, UpdateOptionDto dto)
@@ -45,7 +45,7 @@ public class OptionService : IOptionService
         _unitOfWork.Options.Update(option);
         await _unitOfWork.CompleteAsync();
 
-        return new OptionResponseDto(option.Id, option.OptionText);
+        return new OptionResponseDto(option.Id, option.OptionText, option.IsCorrect);
     }
 
     public async Task DeleteAsync(int id)

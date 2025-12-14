@@ -1,7 +1,6 @@
 ﻿@page "/quiz/play/{Id:int}"
 @using Formit.Shared.DTOs
 @using Formit.App.Services.Interfaces
-@using Microsoft.AspNetCore.Authorization
 
 @inject IQuizService QuizService
 @inject ISubmissionService SubmissionService
@@ -17,25 +16,25 @@
     }
     else if (_quiz == null)
     {
-        <MudAlert Severity="Severity.Error">Quiz não encontrado.</MudAlert>
-        <MudButton Href="/quizzes" Variant="Variant.Text">Voltar</MudButton>
+        <MudAlert Severity="Severity.Error">Quiz not found.</MudAlert>
+        <MudButton Href="/quizzes" Variant="Variant.Text">To go back</MudButton>
     }
     else if (_gameFinished)
     {
         <MudCard Elevation="4" Class="pa-8 text-center animate-fade-in">
             <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Style="font-size: 5rem;" />
-            <MudText Typo="Typo.h4" Class="my-4">Parabéns!</MudText>
-            <MudText Typo="Typo.body1">Você completou <b>@_quiz.Title</b>.</MudText>
+            <MudText Typo="Typo.h4" Class="my-4">Congratulations!</MudText>
+            <MudText Typo="Typo.body1">You completed <b>@_quiz.Title</b>.</MudText>
 
             @if (_finalScore.HasValue)
             {
                 <MudText Typo="Typo.h5" Color="Color.Success" Class="mt-4">
-                    Sua pontuação: <b>@_finalScore</b> pts
+                    Your score: <b>@_finalScore</b> pts
                 </MudText>
             }
 
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/quizzes" Class="mt-6">
-                Voltar para a Lista
+                Back to List
             </MudButton>
         </MudCard>
     }
@@ -45,7 +44,8 @@
             <MudCardHeader>
                 <CardHeaderContent>
                     <div class="d-flex justify-space-between align-center">
-                        <MudText Typo="Typo.caption">Questão @(_currentQuestionIndex + 1) de @_quiz.Questions.Count</MudText>
+                        <MudText Typo="Typo.caption">Question @(_currentQuestionIndex + 1) de @_quiz.Questions.Count
+                        </MudText>
                         <MudChip Size="Size.Small" Color="Color.Primary" T="string">@_quiz.Title</MudChip>
                     </div>
                     <MudProgressLinear Color="Color.Info" Value="@GetProgress()" Class="my-2" Striped="true" />
@@ -60,32 +60,37 @@
             <MudCardContent>
                 <MudText Typo="Typo.h6" Class="mb-6">@_currentQuestion?.Text</MudText>
 
-                <MudRadioGroup @bind-Value="_selectedOptionId">
+                <MudRadioGroup T="int" @bind-Value="_selectedOptionId" Class="d-flex flex-column">
+
                     @foreach (var option in _currentQuestion!.Options)
                     {
-                        <div class="d-flex align-center pa-3 my-2 border rounded mud-border-lines-default hover-option @(_selectedOptionId == option.Id ? "selected-option" : "")">
-                            <MudRadio Value="@option.Id" Color="Color.Primary" UnCheckedColor="Color.Default">
-                                @option.OptionText
+                        var currentOptionId = option.Id;
+
+                        <MudElement HtmlTag="div" @onclick="@(async () => { selectedOption(option.Id); await Task.CompletedTask; })"
+                            Class="@($"d-flex align-center gap-2 pa-3 my-2 border rounded mud-border-lines-default hover-option {(_selectedOptionId == option.Id ? "selected-option" : "")} mud-width-full")"
+                            @key="option.Id">
+                            <MudRadio Value="@option.Id" Color="MudBlazor.Color.Primary" Class="mr-3"
+                                @onclick:stopPropagation="true">
                             </MudRadio>
-                        </div>
+
+                            <MudText Style="flex-grow: 1;">@option.OptionText</MudText>
+                        </MudElement>
                     }
                 </MudRadioGroup>
             </MudCardContent>
 
             <MudCardActions Class="d-flex justify-end pa-4">
-                <MudButton Variant="Variant.Filled" 
-                Color="@(_isLastQuestion ? Color.Success : Color.Primary)" 
-                EndIcon="@(_isLastQuestion ? Icons.Material.Filled.Check : Icons.Material.Filled.ArrowForward)"
-                OnClick="NextQuestion"
-                Disabled="@(_selectedOptionId == 0 || _isSubmitting)">
+                <MudButton Variant="Variant.Filled" Color="@(_isLastQuestion? Color.Success: Color.Primary)"
+                    EndIcon="@(_isLastQuestion ? Icons.Material.Filled.Check : Icons.Material.Filled.ArrowForward)"
+                    OnClick="NextQuestion" Disabled="@(_selectedOptionId == 0 || _isSubmitting)">
                     @if (_isSubmitting)
                     {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2"/>
-                        <span>Enviando...</span>
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Sending...</span>
                     }
                     else
                     {
-                        @(_isLastQuestion ? "Finalizar Quiz" : "Próxima Questão")
+                        @(_isLastQuestion ? "Finish Quiz" : "Next Question")
                     }
                 </MudButton>
             </MudCardActions>
@@ -94,10 +99,31 @@
 </MudContainer>
 
 <style>
-    .hover-option:hover { background-color: var(--mud-palette-action-hover); cursor: pointer; }
-    .selected-option { background-color: var(--mud-palette-primary-hover); border-color: var(--mud-palette-primary) !important; }
-    .animate-fade-in { animation: fadeIn 0.5s ease-in; }
-    @@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .hover-option:hover {
+        background-color: var(--mud-palette-action-hover);
+        cursor: pointer;
+    }
+
+    .selected-option {
+        background-color: var(--mud-palette-primary-hover);
+        border-color: var(--mud-palette-primary) !important;
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease-in;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 </style>
 
 @code {
@@ -116,17 +142,22 @@
 
     private QuestionResponseDto? _currentQuestion => _quiz?.Questions.ElementAtOrDefault(_currentQuestionIndex);
     private bool _isLastQuestion => _currentQuestionIndex == (_quiz?.Questions.Count - 1);
+    private Task selectedOption(int id)
+{
+    _selectedOptionId = id;
 
+    return Task.CompletedTask;
+}
     protected override async Task OnInitializedAsync()
     {
         _isLoading = true;
-        try 
+        try
         {
             _quiz = await QuizService.GetByIdAsync(Id);
         }
-        catch 
+        catch
         {
-            Snackbar.Add("Erro ao carregar o quiz.", Severity.Error);
+            Snackbar.Add("Error loading quiz.", Severity.Error);
         }
         _isLoading = false;
     }
@@ -156,17 +187,17 @@
             var dto = new SubmitFormDto() { QuizId = Id, Answers = _collectedAnswers };
 
             var submissionId = await SubmissionService.SubmitQuizAsync(dto);
-            
+
             var details = await SubmissionService.GetSubmissionDetailsAsync(submissionId);
             _finalScore = details?.Score ?? 0;
 
             _gameFinished = true;
-            Snackbar.Add("Respostas enviadas com sucesso!", Severity.Success);
+            Snackbar.Add("Responses sent successfully.!", Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erro ao enviar respostas: {ex.Message}", Severity.Error);
-            _collectedAnswers.RemoveAt(_collectedAnswers.Count - 1); 
+            Snackbar.Add($"Error sending responses.: {ex.Message}", Severity.Error);
+            _collectedAnswers.RemoveAt(_collectedAnswers.Count - 1);
         }
         finally
         {

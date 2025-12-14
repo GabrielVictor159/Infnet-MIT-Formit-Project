@@ -62,6 +62,19 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole("Admin", "User"));
 });
 
+const string MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: MyAllowSpecificOrigins,
+        policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod(); 
+        });
+});
+
 builder.Services.AddControllers();
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
@@ -74,7 +87,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 
         var response = new AuthResponseDto(
             Success: false,
-            Message: "Ocorreram um ou mais erros de validação.",
+            Message: "Ocorreram um ou mais erros de validaï¿½ï¿½o.",
             Token: null,
             UserName: null,
             Errors: errors 
@@ -91,8 +104,8 @@ builder.Services.AddSwaggerGen(c =>
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = @"Cabeçalho de autorização JWT usando o esquema Bearer. 
-                      Digite 'Bearer' [espaço] e então seu token no campo de texto abaixo.
+        Description = @"Cabeï¿½alho de autorizaï¿½ï¿½o JWT usando o esquema Bearer. 
+                      Digite 'Bearer' [espaï¿½o] e entï¿½o seu token no campo de texto abaixo.
                       Exemplo: 'Bearer 12345abcdef'",
         Name = "Authorization",
         In = ParameterLocation.Header,
@@ -146,9 +159,11 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.UseCors(MyAllowSpecificOrigins);
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.Run($"http://localhost:8084"); 
 
-app.Run();

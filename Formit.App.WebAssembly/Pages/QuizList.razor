@@ -1,38 +1,29 @@
 ﻿@page "/quizzes"
 @using Formit.Shared.DTOs
 @using Formit.App.Services.Interfaces
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
 
 @inject IQuizService QuizService
+@inject IAuthenticationService authService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
 
     <div class="d-flex justify-space-between align-center mb-6">
-        <MudText Typo="Typo.h4">Quizzes Disponíveis</MudText>
+        <MudText Typo="Typo.h4">Available Quizzes</MudText>
 
         <div class="d-flex gap-4 align-center">
-            <MudTextField @bind-Value="_searchString"
-                          Placeholder="Buscar Quiz..."
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search"
-                          IconSize="Size.Medium"
-                          Class="mt-0"
-                          DebounceInterval="500"
-                          OnDebounceIntervalElapsed="OnSearch" />
+            <MudTextField @bind-Value="_searchString" Placeholder="Search Quiz..." Adornment="Adornment.Start"
+                AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" DebounceInterval="500"
+                OnDebounceIntervalElapsed="OnSearch" />
 
-            <AuthorizeView Roles="Admin">
-                <Authorized>
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Add"
-                               OnClick="CreateQuiz">
-                        Novo Quiz
-                    </MudButton>
-                </Authorized>
-            </AuthorizeView>
+            @if (_isAdmin)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                    OnClick="CreateQuiz">
+                    New Quiz
+                </MudButton>
+            }
         </div>
     </div>
 
@@ -56,7 +47,8 @@
                         else
                         {
                             <div class="d-flex justify-center align-center mud-theme-primary lighten-4" style="height: 200px;">
-                                <MudIcon Icon="@Icons.Material.Filled.Quiz" Size="Size.Large" Color="Color.Primary" style="font-size: 4rem;" />
+                                <MudIcon Icon="@Icons.Material.Filled.Quiz" Size="Size.Large" Color="Color.Primary"
+                                    style="font-size: 4rem;" />
                             </div>
                         }
 
@@ -68,27 +60,24 @@
 
                         <MudCardContent Class="flex-grow-1">
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                @(quiz.Description?.Length > 100 ? quiz.Description.Substring(0, 100) + "..." : quiz.Description)
+                                @(quiz.Description?.Length > 100 ? quiz.Description.Substring(0, 100) + "..." :
+                                                        quiz.Description)
                             </MudText>
-                            <MudChip T="string" Size="Size.Small" Class="mt-2">@quiz.Questions?.Count Questões</MudChip>
                         </MudCardContent>
 
                         <MudCardActions Class="justify-space-between pa-4">
-                            <MudButton Variant="Variant.Filled"
-                                       Color="Color.Success"
-                                       StartIcon="@Icons.Material.Filled.PlayArrow"
-                                       OnClick="@(() => PlayQuiz(quiz.Id))">
-                                Responder
+                            <MudButton Variant="Variant.Filled" Color="Color.Success"
+                                StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="@(() => PlayQuiz(quiz.Id))">
+                                To respond
                             </MudButton>
 
-                            <AuthorizeView Roles="Admin">
-                                <Authorized Context="authContext">
-                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                                   Color="Color.Info"
-                                                   OnClick="@(() => EditQuiz(quiz.Id))"
-                                                   Title="Editar Quiz" />
-                                </Authorized>
-                            </AuthorizeView>
+                            @if (_isAdmin)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info"
+                                    OnClick="@(() => EditQuiz(quiz.Id))" Title="Edit Quiz" />
+                                <MudIconButton Icon="@Icons.Material.Filled.InsertChartOutlined" Color="Color.Info"
+                                    OnClick="@(() => verifySubmissions(quiz.Id))" Title="Verify Responses" />
+                            }
                         </MudCardActions>
                     </MudCard>
                 </MudItem>
@@ -101,13 +90,14 @@
     }
     else
     {
-        <MudAlert Severity="Severity.Info" Class="mt-4">Nenhum quiz encontrado.</MudAlert>
+        <MudAlert Severity="Severity.Info" Class="mt-4">No quizzes found.</MudAlert>
     }
 
 </MudContainer>
 
 @code {
     private bool _isLoading = true;
+    private bool _isAdmin = false;
     private List<QuizResponseDto> _quizzes = new();
     private string _searchString = "";
 
@@ -117,6 +107,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _isAdmin = await authService.IsUserAdminAsync();
         await LoadData();
     }
 
@@ -133,7 +124,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add("Erro ao carregar quizzes.", Severity.Error);
+            Snackbar.Add("Error loading quizzes.", Severity.Error);
             Console.WriteLine(ex.Message);
         }
         finally
@@ -162,6 +153,11 @@
     private void EditQuiz(int id)
     {
         Navigation.NavigateTo($"/quiz/edit/{id}");
+    }
+
+    private void verifySubmissions(int id)
+    {
+        Navigation.NavigateTo($"/quiz/{id}/submissions");
     }
 
     private void PlayQuiz(int id)

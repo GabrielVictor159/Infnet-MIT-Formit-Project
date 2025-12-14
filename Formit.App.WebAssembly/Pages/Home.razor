@@ -1,7 +1,83 @@
 ﻿@page "/"
+@using Formit.App.Services.Interfaces
+@inject NavigationManager Navigation
+@inject IAuthenticationService AuthService 
+@inject ISnackbar Snackbar 
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Formit | Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-12 mb-8">
+    
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center my-8">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </div>
+    }
+    else
+    {
+        <MudCard Elevation="4" Class="pa-8 text-center">
+            
+            <MudIcon Icon="@Icons.Material.Filled.Assignment" 
+                     Color="Color.Primary" 
+                     Style="font-size: 6rem;" 
+                     Class="mb-4" />
+            
+            <MudText Typo="Typo.h3" Class="font-weight-bold mb-2">
+                Welcome to Formit!
+            </MudText>
+            
+            <MudText Typo="Typo.subtitle1" Class="mb-8">
+                Your platform to efficiently create, edit, and manage quizzes and forms.
+            </MudText>
 
-Welcome to your new app.
+            <MudDivider Class="my-4" />
+            <MudStack Row="true" Justify="Justify.Center" Spacing="3" Class="mt-6">
+                
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Secondary" 
+                           Size="Size.Large" 
+                           StartIcon="@Icons.Material.Filled.ListAlt"
+                           Href="/quizzes">
+                    View My Quizzes
+                </MudButton>
+
+                @if (_isAdmin)
+                {
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               Size="Size.Large" 
+                               StartIcon="@Icons.Material.Filled.AddCircle"
+                               OnClick="NavigateToCreate">
+                        Create New Quiz
+                    </MudButton>
+                }
+            </MudStack>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    private bool _isLoading = true;
+    private bool _isAdmin = false;
+
+    // Check user permission status
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _isAdmin = await AuthService.IsUserAdminAsync(); 
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Error checking user permissions.", Severity.Error);
+            _isAdmin = false; 
+        }
+        _isLoading = false;
+    }
+
+    private void NavigateToCreate()
+    {
+        Navigation.NavigateTo("/quiz/create");
+    }
+}

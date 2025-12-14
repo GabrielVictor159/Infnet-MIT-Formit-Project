@@ -25,7 +25,7 @@ public class QuestionService : IQuestionService
             question.Id,
             question.Text,
             question.Image,
-            options.Select(o => new OptionResponseDto(o.Id, o.OptionText)).ToList()
+            options.Select(o => new OptionResponseDto(o.Id, o.OptionText, o.IsCorrect)).ToList()
         );
     }
 

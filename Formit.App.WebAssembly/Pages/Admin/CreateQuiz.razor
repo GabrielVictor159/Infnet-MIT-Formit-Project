@@ -2,16 +2,15 @@
 @using Formit.Shared.DTOs
 @using Formit.App.Services.Interfaces
 @using System.ComponentModel.DataAnnotations
-@using Formit.App.Components
-
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@using Formit.App.WebAssembly.Components
 
 @inject IQuizService QuizService
 @inject NavigationManager Navigation
+@inject IAuthenticationService AuthService
 @inject ISnackbar Snackbar
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8 mb-8">
-    <MudText Typo="Typo.h4" GutterBottom="true">Criar Novo Quiz</MudText>
+    <MudText Typo="Typo.h4" GutterBottom="true">Create New Quiz</MudText>
 
     <EditForm Model="@_quizModel" OnValidSubmit="SaveQuiz">
         <DataAnnotationsValidator />
@@ -19,31 +18,24 @@
         <MudCard Elevation="3" Class="mb-4">
             <MudCardHeader>
                 <CardHeaderContent>
-                    <MudText Typo="Typo.h6">Informações Básicas</MudText>
+                    <MudText Typo="Typo.h6">Basic Information</MudText>
                 </CardHeaderContent>
             </MudCardHeader>
             <MudCardContent>
                 <MudGrid>
                     <MudItem xs="12">
-                        <QuizImageUploader @bind-Image="_quizModel.Image" Label="Carregar Capa do Quiz" />
+                        <QuizImageUploader @bind-Image="_quizModel.Image" Label="Load Quiz Cover" />
                     </MudItem>
 
                     <MudItem xs="12">
-                        <MudTextField Label="Título" @bind-Value="_quizModel.Title" For="@(() => _quizModel.Title)" Variant="Variant.Outlined" />
+                        <MudTextField Label="Title" @bind-Value="_quizModel.Title" For="@(() => _quizModel.Title)" Variant="Variant.Outlined" />
                     </MudItem>
                     <MudItem xs="12">
-                        <MudTextField Label="Descrição" Lines="3" @bind-Value="_quizModel.Description" Variant="Variant.Outlined" />
+                        <MudTextField Label="Description" Lines="3" @bind-Value="_quizModel.Description" Variant="Variant.Outlined" />
                     </MudItem>
                 </MudGrid>
             </MudCardContent>
         </MudCard>
-
-        <div class="d-flex justify-space-between align-center mt-6 mb-2">
-            <MudText Typo="Typo.h5">Questões (@_quizModel.Questions.Count)</MudText>
-            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddQuestion">
-                Adicionar Questão
-            </MudButton>
-        </div>
 
         @for (int i = 0; i < _quizModel.Questions.Count; i++)
         {
@@ -53,33 +45,39 @@
             <MudCard @key="question" Elevation="2" Class="mb-4 pa-2 border-l-4 mud-border-primary">
                 <MudCardContent>
                     <div class="d-flex justify-space-between align-start mb-4">
-                        <MudText Typo="Typo.subtitle1"><b>Questão @(index + 1)</b></MudText>
+                        <MudText Typo="Typo.subtitle1"><b>Question @(index + 1)</b></MudText>
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveQuestion(question))" />
                     </div>
 
-                    <QuizImageUploader @bind-Image="question.Image" Label="Adicionar Imagem à Questão" />
+                    <QuizImageUploader @bind-Image="question.Image" Label="Add Image to Question" />
 
-                    <MudTextField Label="Enunciado" @bind-Value="question.Text" Variant="Variant.Text" Class="mb-4 mt-2" Required="true" Lines="2" />
+                    <MudTextField Label="Statement" @bind-Value="question.Text" Variant="Variant.Text" Class="mb-4 mt-2" Required="true" Lines="2" />
 
-                    <MudText Typo="Typo.body2" Class="mt-2">Opções:</MudText>
+                    <MudText Typo="Typo.body2" Class="mt-2">Options:</MudText>
                     @foreach (var option in question.Options)
                     {
                         <div class="d-flex align-center gap-2 mb-2">
                             <MudCheckBox @bind-Value="option.IsCorrect" Color="Color.Success" Dense="true" />
-                            <MudTextField @bind-Value="option.OptionText" Placeholder="Texto da opção" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" />
+                            <MudTextField @bind-Value="option.OptionText" Placeholder="Option text" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" />
                             <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => question.Options.Remove(option))" />
                         </div>
                     }
                     <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => question.Options.Add(new CreateOptionDto(){IsCorrect=false}))">
-                        Nova Opção
+                        New Option
                     </MudButton>
                 </MudCardContent>
             </MudCard>
         }
+        <div class="d-flex justify-space-between align-center mt-6 mb-2">
+            <MudText Typo="Typo.h5">Questions (@_quizModel.Questions.Count)</MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddQuestion">
+                Add Question
+            </MudButton>
+        </div>
 
         <div class="d-flex justify-end mt-4 mb-8">
             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Success" Size="Size.Large" Disabled="_isSaving">
-                @(_isSaving ? "Salvando..." : "Finalizar e Criar Quiz")
+                @(_isSaving ? "Saving..." : "Finish and Create Quiz")
             </MudButton>
         </div>
     </EditForm>
@@ -89,6 +87,14 @@
     private CreateQuizDto _quizModel = new CreateQuizDto { Questions = new List<CreateQuestionDto>() };
     private bool _isSaving = false;
 
+    protected override async Task OnInitializedAsync()
+    {
+        bool isAdmin = await AuthService.IsUserAdminAsync();
+        if (!isAdmin)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
     private void AddQuestion()
     {
         _quizModel.Questions.Add(new CreateQuestionDto
@@ -109,17 +115,17 @@
 
     private async Task SaveQuiz()
     {
-        if (!_quizModel.Questions.Any()) { Snackbar.Add("Adicione pelo menos uma questão.", Severity.Warning); return; }
+        if (!_quizModel.Questions.Any()) { Snackbar.Add("Add at least one question..", Severity.Warning); return; }
         foreach (var q in _quizModel.Questions)
         {
-            if (!q.Options.Any(o => o.IsCorrect)) { Snackbar.Add($"A questão '{q.Text}' não tem resposta correta.", Severity.Warning); return; }
+            if (!q.Options.Any(o => o.IsCorrect)) { Snackbar.Add($"The question '{q.Text}' has no correct answer.", Severity.Warning); return; }
         }
 
         _isSaving = true;
         try
         {
             await QuizService.CreateAsync(_quizModel);
-            Snackbar.Add("Quiz criado!", Severity.Success);
+            Snackbar.Add("Quiz created!", Severity.Success);
             Navigation.NavigateTo("/quizzes");
         }
         catch (Exception ex) { Snackbar.Add($"Erro: {ex.Message}", Severity.Error); }

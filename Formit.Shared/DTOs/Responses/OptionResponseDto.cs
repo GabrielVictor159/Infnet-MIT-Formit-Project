@@ -7,5 +7,6 @@ using System.Threading.Tasks;
 namespace Formit.Shared.DTOs;
 public record OptionResponseDto(
     int Id,
-    string OptionText
+    string OptionText,
+    bool IsCorrect
 );

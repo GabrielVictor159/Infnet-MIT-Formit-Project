@@ -1,16 +1,131 @@
 ﻿@inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@using Blazored.LocalStorage
+@using Formit.App.Services.Interfaces
+@inject IAuthenticationService AuthService
+@inject ILocalStorageService localStorage
+@inject NavigationManager Navigation
+@implements IDisposable
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+<MudThemeProvider Theme="_meuTemaCustomizado" @bind-IsDarkMode="_isDarkMode" />
 
-        <article class="content px-4">
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+        <MudLink Href="/" Underline="Underline.None" Color="Color.Inherit">
+            <MudText Typo="Typo.h5" Class="ml-3">Formit App</MudText>
+        </MudLink>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" OnClick="ProfileRedirect" />
+
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                       Color="Color.Inherit"
+                       OnClick="@ToggleTheme"
+                       Title="Alternar Tema" />
+
+        <MudIconButton Icon="@Icons.Material.Filled.Login" Color="Color.Inherit" OnClick="Logout" />
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <MudNavMenu>
+            @if (_isAdmin)
+            {
+                <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People">Users</MudNavLink>
+            }
+            <MudNavLink Href="/quizzes" Icon="@Icons.Material.Filled.Article">forms</MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
             @Body
-        </article>
-    </main>
-</div>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    bool _drawerOpen = true;
+    bool _isDarkMode = false;
+    bool _isAdmin = false;
+    protected override async Task OnInitializedAsync()
+    {
+        _isAdmin = await AuthService.IsUserAdminAsync();
+    }
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        
+        _ = ValidateAuth();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await ValidateAuth();
+    }
+
+    private async Task ValidateAuth()
+    {
+        var token = await localStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        await AuthService.ValidateSessionAsync();
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.Logout();
+    }
+
+    void ProfileRedirect()
+    {
+        Navigation.NavigateTo("/profile");
+    }
+
+
+    private MudTheme _meuTemaCustomizado = new MudTheme()
+        {
+            PaletteLight = new PaletteLight()
+            {
+                Primary = Colors.Blue.Darken2,
+                Secondary = Colors.Teal.Accent4,
+                AppbarBackground = Colors.Blue.Darken2,
+                Background = Colors.Gray.Lighten5,
+            },
+
+            PaletteDark = new PaletteDark()
+            {
+                Primary = Colors.Blue.Lighten1,
+                Secondary = Colors.Teal.Accent3,
+                AppbarBackground = "#2B2B3E",
+                Background = "#1b1b28",
+                Surface = "#2B2B3E",
+                TextPrimary = "#ffffff"
+            },
+
+            LayoutProperties = new LayoutProperties()
+            {
+                DefaultBorderRadius = "6px"
+            }
+        };
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    void ToggleTheme()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

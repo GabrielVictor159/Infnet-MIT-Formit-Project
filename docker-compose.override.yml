@@ -4,9 +4,8 @@ services:
       - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
     ports:
-      - "8080:8080"
+      - "8084:8084"
     networks:
       - formit
     depends_on:
