@@ -1,13 +1,8 @@
 services:
   formit.api:
+    env_file:
+      - .env
     environment:
-      - DBCONN=Host=postgres_db;Port=5432;Database=QuizApiDb;Username=postgres;Password=postgres
-      - ADMIN_DEFAULT_EMAIL=admin@formit.com
-      - ADMIN_DEFAULT_PASSWORD=Admin@123
-      - JWT_SECRET_KEY=SuperSecretKey@345ThisIsALongKeyForSecurity!
-      - JWT_EXPIRATION_HOURS=2
-      - JWT_ISSUER=FormitApi
-      - JWT_AUDIENCE=FormitClient
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
     ports:
@@ -18,11 +13,8 @@ services:
       - postgres_db
 
   formit.app:
-    environment:
-      - ApiSettings__BaseUrl=http://localhost:8080/ 
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
-      - DOTNET_USE_POLLING_FILE_WATCHER=true
+    env_file:
+      - .env
     ports:
       - "8082:80"
     networks:

@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  app:
+    env_file:
+      - ../.env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - formit
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+
+  postgres_db:
+    extends:
+      file: ../docker-compose.override.yml
+      service: postgres_db
+
+volumes:
+  postgres_data:
+
+networks:
+  formit: 
