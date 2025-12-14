@@ -4,6 +4,7 @@ services:
       - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://0.0.0.0:8084
     ports:
       - "8084:8084"
     networks:

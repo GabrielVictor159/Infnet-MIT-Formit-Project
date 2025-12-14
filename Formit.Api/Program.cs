@@ -165,5 +165,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.Run($"http://localhost:8084"); 
+if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
+{
+ app.Run($"http://localhost:8084");    
+}
+else
+{
+ app.Run();
+}
 

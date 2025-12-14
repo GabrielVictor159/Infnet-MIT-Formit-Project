@@ -30,4 +30,4 @@ RUN dotnet publish "./Formit.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "Formit.Api.dll"]
+ENTRYPOINT ["dotnet", "Formit.Api.dll", "--urls", "http://0.0.0.0:8084"]
